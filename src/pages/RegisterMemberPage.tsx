@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { memberDB } from '../stores/MemberStore';
 import { Member } from '../types';
 import QRCode from 'react-qr-code';
+import { useAuth } from '../contexts/AuthContext';
 
 const RegisterMemberPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -10,6 +11,7 @@ const RegisterMemberPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [qrValue, setQrValue] = useState<string>('');
+  const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +24,7 @@ const RegisterMemberPage: React.FC = () => {
       registeredAt: Date.now(),
     };
     memberDB.add(newMember);
+    login(id);
     setRegisteredId(id);
     setQrValue(generateQRValue(id));
   };

@@ -1,44 +1,21 @@
 import React, { useState } from 'react';
 import QrScanner from '../components/QrScanner';
-import { memberDB } from '../stores/MemberStore';
 import { usageDB } from '../stores/UsageStore';
 import { v4 as uuidv4 } from 'uuid';
 import { CouponUsage } from '../types';
 import { couponDB } from '../stores/CouponStore';
-
-const extractMemberId = (qr: string): string | null => {
-  if (qr.length < 32) return null;
-  const idWithoutDash = qr.slice(0, 32).toLowerCase();
-  const members = memberDB.list();
-  const found = members.find((m) => m.id.replace(/-/g, '').toLowerCase() === idWithoutDash);
-  return found?.id ?? null;
-};
+import { useAuth } from '../contexts/AuthContext';
 
 const UseCouponPage: React.FC = () => {
-  const [step, setStep] = useState<'scanMember' | 'scanCoupon' | 'input' | 'done' | 'error'>('scanMember');
+  const { member } = useAuth();
+  if (!member) return <div>ログインしてからご利用ください。</div>;
+  const [memberId] = useState<string>(member.id);
+  const [step, setStep] = useState<'scanCoupon' | 'input' | 'done' | 'error'>('scanCoupon');
   const [qrValue, setQrValue] = useState('');
-  const [memberId, setMemberId] = useState<string | null>(null);
   const [count, setCount] = useState(1);
   const [location, setLocation] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [errorMsg, setErrorMsg] = useState('');
   const [couponId, setCouponId] = useState<string | null>(null);
-
-  const handleMemberScan = (text: string) => {
-    const id = extractMemberId(text);
-    if (!id) {
-      setErrorMsg('会員QRではありません');
-      setStep('error');
-      return;
-    }
-    setMemberId(id);
-    // 位置情報
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      });
-    }
-    setStep('scanCoupon');
-  };
 
   const handleCouponScan = (text: string) => {
     setQrValue(text);
@@ -53,7 +30,7 @@ const UseCouponPage: React.FC = () => {
       setStep('error');
       return;
     }
-    if (!coupon.eligibleMemberIds.includes(memberId!)) {
+    if (!coupon.eligibleMemberIds.includes(memberId)) {
       setErrorMsg('この会員はクーポン対象外です');
       setStep('error');
       return;
@@ -82,15 +59,6 @@ const UseCouponPage: React.FC = () => {
     usageDB.add(newUsage);
     setStep('done');
   };
-
-  if (step === 'scanMember') {
-    return (
-      <div>
-        <h2 className="text-xl font-semibold mb-4">会員QRをスキャンしてください</h2>
-        <QrScanner onResult={handleMemberScan} />
-      </div>
-    );
-  }
 
   if (step === 'scanCoupon') {
     return (
@@ -130,7 +98,7 @@ const UseCouponPage: React.FC = () => {
       <div>
         <h2 className="text-xl font-semibold mb-4">エラーが発生しました</h2>
         <p>{errorMsg}</p>
-        <button onClick={() => setStep('scanMember')} className="bg-blue-600 text-white px-4 py-2 rounded">再試行</button>
+        <button onClick={() => setStep('scanCoupon')} className="bg-blue-600 text-white px-4 py-2 rounded">再試行</button>
       </div>
     );
   }

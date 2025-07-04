@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { couponDB } from '../../stores/CouponStore';
 import { Coupon } from '../../types';
@@ -6,12 +6,25 @@ import { useNavigate } from 'react-router-dom';
 import { memberDB } from '../../stores/MemberStore';
 
 const CouponCreatePage: React.FC = () => {
-  const [code, setCode] = useState('');
   const [maxUses, setMaxUses] = useState(1);
   const [expiresAt, setExpiresAt] = useState('');
   const navigate = useNavigate();
   const members = memberDB.list();
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
+  const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let str = '';
+    for (let i = 0; i < 120; i++) {
+      str += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return str;
+  };
+
+  const [code, setCode] = useState<string>('');
+  useEffect(() => {
+    setCode(generateCode());
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +47,11 @@ const CouponCreatePage: React.FC = () => {
       <h2 className="text-xl font-semibold mb-4">クーポン登録</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block mb-1">コード (110桁)</label>
-          <input className="border p-2 w-full" value={code} onChange={(e) => setCode(e.target.value)} maxLength={110} required />
+          <label className="block mb-1">自動生成コード (120桁)</label>
+          <div className="flex gap-2">
+            <input className="border p-2 w-full text-xs" value={code} readOnly />
+            <button type="button" className="bg-gray-300 px-2 rounded" onClick={() => setCode(generateCode())}>再生成</button>
+          </div>
         </div>
         <div>
           <label className="block mb-1">最大利用回数</label>
