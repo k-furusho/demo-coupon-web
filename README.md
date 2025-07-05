@@ -76,19 +76,28 @@ npm run dev -- --host
 > Vite は `cert/server-key.pem` & `server-cert.pem` が存在する場合のみ https オプションを自動適用するように `vite.config.ts` を設定済みです。
 
 ## 技術スタック
-* React 18 / Vite 5 / TypeScript 5
-* Tailwind CSS 3
+* Frontend: React 18 / Vite 5 / TypeScript 5
+* UI: Tailwind CSS 3
+* State & Data Fetch: SWR 2
 * QR 生成: `react-qr-code`
 * QR 読取: `@zxing/library` + `jsQR`（並列実行）
-* 永続化: localStorage ラッパー `LocalDB`
+* 認証: Cookie (HttpOnly) + React Context
+* API サーバ: Express 4 + lowdb (JSON)
+* 同時起動ツール: `concurrently`
+* 開発 HTTPS: mkcert + Vite built-in HTTPS
 
 ## フォルダ構成
 ```
 src/
   components/      汎用 UI (QrScanner)
   pages/           画面 UI
-  stores/          LocalDB ラッパー
+  contexts/        認証コンテキスト
+  lib/             SWR フック & API ヘルパー
   types.ts         型定義
+server/
+  server.js        Express + lowdb API サーバ
+  db.json          JSON データストア
+cert/              開発用自己署名証明書 (任意)
 ```
 
 ### ブラウザに "Your connection is not private" が表示された場合
