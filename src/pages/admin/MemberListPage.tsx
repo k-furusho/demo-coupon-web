@@ -1,8 +1,9 @@
 import React from 'react';
-import { memberDB } from '../../stores/MemberStore';
+import { useMembers } from '../../lib/api';
+import { Member } from '../../types';
 
 const MemberListPage: React.FC = () => {
-  const members = memberDB.list();
+  const { data: members = [] } = useMembers() as { data: Member[] };
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">会員リスト</h2>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Member } from '../types';
 import { memberDB } from '../stores/MemberStore';
+import { apiPost } from '../lib/api';
 
 interface AuthContextValue {
   member: Member | null;
@@ -14,23 +15,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [member, setMember] = useState<Member | null>(null);
 
   useEffect(() => {
-    const storedId = localStorage.getItem('currentMemberId');
-    if (storedId) {
-      const m = memberDB.get(storedId);
-      if (m) setMember(m);
-    }
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => m && setMember(m));
   }, []);
 
-  const login = (memberId: string) => {
-    const m = memberDB.get(memberId);
-    if (m) {
-      setMember(m);
-      localStorage.setItem('currentMemberId', memberId);
-    }
+  const login = async (memberId: string): Promise<void> => {
+    const m: Member = await apiPost('/api/auth/login', { memberId });
+    setMember(m);
   };
   const logout = () => {
     setMember(null);
-    localStorage.removeItem('currentMemberId');
+    document.cookie='memberId=; Max-Age=0; path=/;';
   };
 
   return <AuthContext.Provider value={{ member, login, logout }}>{children}</AuthContext.Provider>;

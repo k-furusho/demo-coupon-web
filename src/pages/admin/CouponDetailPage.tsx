@@ -1,15 +1,15 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { couponDB } from '../../stores/CouponStore';
-import { usageDB } from '../../stores/UsageStore';
 import QRCode from 'react-qr-code';
-import { memberDB } from '../../stores/MemberStore';
+import { useMembers } from '../../lib/api';
+import { useCoupon, useUsages } from '../../lib/api';
 
 const CouponDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const coupon = id ? couponDB.get(id) : undefined;
-  const usages = usageDB.list().filter((u) => u.couponId === id);
-  const eligibleMembers = coupon?.eligibleMemberIds.map((id) => memberDB.get(id)).filter(Boolean) || [];
+  const { data: coupon } = useCoupon(id || null);
+  const { data: usages = [] } = useUsages(id);
+  const { data: members = [] } = useMembers();
+  const eligibleMembers = coupon?.eligibleMemberIds.map((mid: string) => members.find((m: any)=>m.id===mid)).filter(Boolean) || [];
 
   if (!coupon) return <div>クーポンが見つかりません</div>;
 
@@ -31,7 +31,7 @@ const CouponDetailPage: React.FC = () => {
           </tr>
         </thead>
         <tbody>
-          {usages.map((u) => (
+          {usages.map((u: any) => (
             <tr key={u.id}>
               <td className="border px-2 py-1">{u.memberId}</td>
               <td className="border px-2 py-1">{u.count}</td>
@@ -49,7 +49,7 @@ const CouponDetailPage: React.FC = () => {
       </div>
       <h3 className="text-lg font-semibold">対象会員</h3>
       <ul className="list-disc pl-6">
-        {eligibleMembers.map((m) => (
+        {eligibleMembers.map((m: any) => (
           <li key={(m as any).id}>{(m as any).name} ({(m as any).email})</li>
         ))}
       </ul>

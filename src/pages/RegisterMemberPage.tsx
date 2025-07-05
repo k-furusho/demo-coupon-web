@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { memberDB } from '../stores/MemberStore';
-import { Member } from '../types';
-import QRCode from 'react-qr-code';
 import { useAuth } from '../contexts/AuthContext';
+import { createMember } from '../lib/api';
+import QRCode from 'react-qr-code';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterMemberPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -12,21 +11,19 @@ const RegisterMemberPage: React.FC = () => {
   const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [qrValue, setQrValue] = useState<string>('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const id = uuidv4();
-    const newMember: Member = {
-      id,
-      name,
-      email,
-      phone,
-      registeredAt: Date.now(),
-    };
-    memberDB.add(newMember);
-    login(id);
-    setRegisteredId(id);
-    setQrValue(generateQRValue(id));
+    const saved = await createMember({ name, email, phone });
+    try {
+      await login(saved.id);
+    } catch (e) {
+      console.error('login error', e);
+    }
+    setRegisteredId(saved.id);
+    setQrValue(generateQRValue(saved.id));
+    navigate('/use');
   };
 
   const generateQRValue = (id: string): string => {

@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import QrScanner from '../components/QrScanner';
-import { usageDB } from '../stores/UsageStore';
-import { v4 as uuidv4 } from 'uuid';
-import { CouponUsage } from '../types';
-import { couponDB } from '../stores/CouponStore';
+import { useCoupons, createUsage } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const UseCouponPage: React.FC = () => {
@@ -16,10 +13,13 @@ const UseCouponPage: React.FC = () => {
   const [location, setLocation] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [errorMsg, setErrorMsg] = useState('');
   const [couponId, setCouponId] = useState<string | null>(null);
+  const { data: coupons = [] } = useCoupons();
+
+  const handleScannerError = (msg: string) => { setErrorMsg(msg); setStep('error'); };
 
   const handleCouponScan = (text: string) => {
     setQrValue(text);
-    const coupon = couponDB.list().find((c) => c.code === text);
+    const coupon = coupons.find((c: any) => c.code === text);
     if (!coupon) {
       setErrorMsg('クーポンが見つかりません');
       setStep('error');
@@ -35,20 +35,14 @@ const UseCouponPage: React.FC = () => {
       setStep('error');
       return;
     }
-    if (usageDB.list().filter(u=>u.couponId===coupon.id).reduce((sum,u)=>sum+u.count,0) >= coupon.maxUses) {
-      setErrorMsg('クーポンの利用上限に達しています');
-      setStep('error');
-      return;
-    }
     setCouponId(coupon.id);
     setStep('input');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberId) return;
-    const newUsage: CouponUsage = {
-      id: uuidv4(),
+    const newUsage = {
       couponId: couponId!,
       memberId,
       usedAt: Date.now(),
@@ -56,7 +50,7 @@ const UseCouponPage: React.FC = () => {
       latitude: location.lat,
       longitude: location.lng,
     };
-    usageDB.add(newUsage);
+    await createUsage(newUsage);
     setStep('done');
   };
 
@@ -64,7 +58,7 @@ const UseCouponPage: React.FC = () => {
     return (
       <div>
         <h2 className="text-xl font-semibold mb-4">クーポンQRをスキャンしてください</h2>
-        <QrScanner onResult={handleCouponScan} />
+        <QrScanner onResult={handleCouponScan} onError={handleScannerError} />
       </div>
     );
   }

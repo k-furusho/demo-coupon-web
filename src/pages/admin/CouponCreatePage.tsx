@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { couponDB } from '../../stores/CouponStore';
-import { Coupon } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { memberDB } from '../../stores/MemberStore';
+import { useMembers } from '../../lib/api';
+import { createCoupon } from '../../lib/api';
+import { Coupon } from '../../types';
 
 const CouponCreatePage: React.FC = () => {
   const [maxUses, setMaxUses] = useState(1);
   const [expiresAt, setExpiresAt] = useState('');
   const navigate = useNavigate();
-  const members = memberDB.list();
+  const { data: members = [] } = useMembers();
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
   const generateCode = () => {
@@ -26,20 +25,18 @@ const CouponCreatePage: React.FC = () => {
     setCode(generateCode());
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newCoupon: Coupon = {
-      id: uuidv4(),
+    const newCoupon: Omit<Coupon, 'id' | 'createdAt'> = {
       code,
       status: 'active',
       maxUses,
       expiresAt: new Date(expiresAt).getTime(),
-      createdAt: Date.now(),
       eligibleMemberIds: selectedMemberIds,
-    };
-    couponDB.add(newCoupon);
-    navigate('/admin/coupons');
+    } as const;
+    const saved = await createCoupon(newCoupon);
+    navigate(`/admin/coupons/${saved.id}`);
   };
 
   return (
@@ -64,7 +61,7 @@ const CouponCreatePage: React.FC = () => {
         <div>
           <label className="block mb-1">対象会員</label>
           <div className="border p-2 h-40 overflow-y-auto">
-            {members.map((m) => (
+            {members.map((m: any) => (
               <label key={m.id} className="block text-sm">
                 <input
                   type="checkbox"

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { couponDB } from '../../stores/CouponStore';
-import { usageDB } from '../../stores/UsageStore';
+import { useCoupons, useUsages } from '../../lib/api';
 
 const CouponListPage: React.FC = () => {
-  const coupons = couponDB.list().map((c) => {
-    const used = usageDB.list().filter((u) => u.couponId === c.id).reduce((sum, u) => sum + u.count, 0);
+  const { data: couponsData = [] } = useCoupons();
+  const { data: usages = [] } = useUsages();
+  const coupons = couponsData.map((c: any) => {
+    const used = usages.filter((u: any) => u.couponId === c.id).reduce((sum: number, u: any) => sum + u.count, 0);
     const isExpired = Date.now() > c.expiresAt;
     const isUsedUp = used >= c.maxUses;
     return { ...c, used, isExpired, isUsedUp };
@@ -26,7 +27,7 @@ const CouponListPage: React.FC = () => {
           </tr>
         </thead>
         <tbody>
-          {coupons.map((c) => (
+          {coupons.map((c: any) => (
             <tr key={c.id}>
               <td className="border px-2 py-1">{c.id}</td>
               <td className="border px-2 py-1">{c.code}</td>

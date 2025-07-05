@@ -1,6 +1,6 @@
 # Demo Coupon Web
 
-スマホブラウザで動作するクーポン発行・利用デモアプリ（React + Vite + TypeScript + Tailwind CSS）。会員 QR → クーポン QR の連続スキャンで有効性判定を行い、localStorage に履歴を保存します。
+スマホ／PC ブラウザのどちらでも動作するクーポン発行・利用デモアプリ（React + Vite + TypeScript + Tailwind CSS）。会員登録時に発行される Cookie で認証し、Express + lowdb の簡易 API サーバにデータを共有保存します。スマホ側ではクーポン QR をスキャンして利用し、PC の管理画面ではリアルタイムで履歴を確認できます。
 
 ## 機能概要
 
@@ -10,6 +10,46 @@
 | クーポン利用 | `/use` | ①会員QR → ②クーポンQR を連続スキャンし、対象会員・期限・上限を検証して利用回数を記録 |
 | 管理画面 | `/admin/...` | 会員リスト / クーポン一覧・登録・詳細（QR 表示＋利用履歴） |
 
+## クイックスタート
+
+```bash
+# 依存インストール
+npm install
+
+# API サーバ + Vite (HTTPS 対応) を並列起動
+npm run dev:full
+#   ├─ https://<PC_IP>:5173/  ← フロント (スマホ実機アクセス可)
+#   └─ http://localhost:3001/api/** ← JSON API (Express+lowdb)
+```
+
+| スクリプト | 役割 |
+|------------|------|
+| `npm run dev` | Vite フロントのみ (HTTP) |
+| `npm run serve:api` | API サーバのみ |
+| `npm run dev:full` | API + Vite を並行起動 (`concurrently`) |
+
+## システム構成図
+
+```
+スマホ/PC ブラウザ
+      │ HTTPS (5173)
+      ▼
+   Vite + React
+      │  /api (proxy)           ┌────────────┐
+      ▼                        │  db.json   │
+Express + lowdb (3001) ───────▶│  (lowdb)   │
+                               └────────────┘
+```
+
+* 認証方式: 会員登録 or `/api/auth/login` 時に `memberId` Cookie (HttpOnly) を発行し、端末間で共有
+* 上限・期限チェックなどはサーバで検証し 400 エラーを返却
+
+## マルチデバイス動作確認フロー
+1. スマホで会員登録 (`/register`) → Cookie 発行
+2. PC で管理画面 (`/admin/coupons`) からクーポン発行
+3. スマホ `/use` でクーポン QR を読み取り → 利用成功
+4. PC 管理画面を開いたままでも SWR ポーリングで履歴がリアルタイム反映
+
 ## ローカル環境でスマホ実機テスト
 
 ```bash
@@ -17,10 +57,23 @@ npm install
 npm run dev -- --host
 ```
 
-`vite` が LAN 内に公開されるので、同一 Wi-Fi のスマホで `http://<PC_IP>:5173/` を開いて操作できます。
-  * 起動時にconsoleに出力される`NetWork: http://<PC_IP>:5173/`を開く
-  * iOS Safari でカメラが動かない場合は自己署名 HTTPS を設定してください。
-  * カメラ許可ポップアップが出ないときは、ブラウザ設定でサイトのカメラ権限を ON に。
+## 開発サーバを HTTPS で起動 (スマホ実機テスト)
+
+1. mkcert をインストール & ルート証明書を作成
+   ```bash
+   brew install mkcert
+   mkcert -install
+   ```
+2. `cert/` に自己署名証明書を生成
+   ```bash
+   mkdir cert && cd cert
+   mkcert -key-file server-key.pem -cert-file server-cert.pem <PC_IP>
+   # ↑ IP は開発 PC の LAN IP に合わせて変更
+   ```
+3. ルートに戻り `npm run dev:full` を実行。
+   Vite dev サーバが `https://192.168.1.171:5173` で起動し、スマホからアクセス可能になります。
+
+> Vite は `cert/server-key.pem` & `server-cert.pem` が存在する場合のみ https オプションを自動適用するように `vite.config.ts` を設定済みです。
 
 ## 技術スタック
 * React 18 / Vite 5 / TypeScript 5
@@ -38,12 +91,14 @@ src/
   types.ts         型定義
 ```
 
-## QR 読み取りトラブルシューティング
+### ブラウザに "Your connection is not private" が表示された場合
 
-| 問題 | チェックポイント & 対策 |
-|------|-------------------------|
-| 情報量が多い (110 桁) | Version 4 (33×33) で十分。物理サイズ 3 cm 以上・余白 4 モジュール・高コントラストで印刷 |
-| 機種差 (低解像度カメラ) | `getUserMedia` に `width: { ideal: 1280 }` を指定。暗所では LED/F キャン。|
-| ブラウザ差異 | Chrome◎ / Safari△ (iOS <16) / Firefox△ 。オートフォーカス待ち (0.5 s delay) を実装済。|
-| ネイティブ比性能 | Web は 1–2 s 遅れることがあるが Version 4 程度では実用レベル。|
-| 失敗時フォールバック | 固定コード入力欄を常に表示し、スキャン失敗ストレスを削減。|
+自己署名証明書を使用しているため、初回アクセス時に警告ページが表示されることがあります。
+
+| OS / ブラウザ | 対処手順 |
+|--------------|-----------|
+| **iOS Safari** | 1) 警告画面で「詳細を表示」→「このサイトを開く」<br/>2) ルート CA を端末にインストールしておくと再表示されなくなります。`mkcert -CAROOT` で表示される `rootCA.pem` を AirDrop/メールで送り、設定 > 一般 > プロファイル から信頼を ON にします。 |
+| **Android Chrome** | 1) 警告画面で「詳細設定」→「192.168.x.x にアクセスする(安全ではありません)」をタップ<br/>2) または `chrome://flags/#allow-insecure-localhost` を Enabled にし、ローカル HTTP/HTTPS 警告を無視できます。 |
+| **Desktop Chrome/Edge** | アドレスバーに `thisisunsafe` とタイプすると一時的にバイパス出来ます（文字入力フィールドは表示されませんが入力を検知します）。 |
+
+開発専用環境でのみ使用し、本番環境では Let's Encrypt など公的 CA の証明書を利用してください。
