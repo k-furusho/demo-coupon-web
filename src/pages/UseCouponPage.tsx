@@ -37,6 +37,11 @@ const UseCouponPage: React.FC = () => {
     }
     setCouponId(coupon.id);
     setStep('input');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
